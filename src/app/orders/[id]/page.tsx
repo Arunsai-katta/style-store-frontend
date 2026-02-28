@@ -286,16 +286,31 @@ export default function OrderDetailPage() {
         ) : (
           <div className="space-y-5">
 
-            {/* ── Order Header ──────────────────────────────────────── */}
             <div className="bg-white rounded-2xl shadow-sm px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
+              <div className="flex flex-col">
                 <h1 className="text-xl font-bold text-black">Order #{order.orderNumber}</h1>
-                <p className="text-gray-500 text-sm mt-0.5">Placed on {formatDate(order.createdAt)}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-gray-500 text-sm">Placed on {formatDate(order.createdAt)}</p>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {status && <span className={`text-sm font-medium px-3 py-1 rounded-full ${status.color}`}>{status.label}</span>}
-                {payStatus && <span className={`text-sm font-medium px-3 py-1 rounded-full ${payStatus.color}`}>{payStatus.label}</span>}
-                <span className="text-lg font-bold text-primary ml-1">{formatPrice(order.pricing.total)}</span>
+              <div className="flex flex-wrap items-center gap-3">
+                {status && (
+                  <span className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full ${status.color}`}>
+                    <Package className="w-4 h-4" />
+                    {status.label}
+                  </span>
+                )}
+                {payStatus && (
+                  <span className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full ${payStatus.color}`}>
+                    {order.payment?.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> :
+                      order.payment?.status === 'partially_paid' ? <Banknote className="w-4 h-4" /> :
+                        order.payment?.status === 'failed' ? <AlertCircle className="w-4 h-4" /> :
+                          order.payment?.status === 'refunded' ? <RotateCcw className="w-4 h-4" /> :
+                            <Clock className="w-4 h-4" />}
+                    {payStatus.label}
+                  </span>
+                )}
+                <span className="text-xl font-bold text-primary ml-1">{formatPrice(order.pricing.total)}</span>
               </div>
             </div>
 
@@ -501,9 +516,9 @@ export default function OrderDetailPage() {
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="text-sm text-gray-600">Return #{existingReturn.returnNumber}</span>
                       <span className={`text-xs font-medium px-3 py-1 rounded-full ${existingReturn.status === 'refunded' ? 'bg-green-100 text-green-700' :
-                          existingReturn.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                            existingReturn.status === 'approved' ? 'bg-blue-100 text-blue-700' :
-                              'bg-yellow-100 text-yellow-700'
+                        existingReturn.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          existingReturn.status === 'approved' ? 'bg-blue-100 text-blue-700' :
+                            'bg-yellow-100 text-yellow-700'
                         }`}>
                         {existingReturn.status.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                       </span>
@@ -539,7 +554,7 @@ export default function OrderDetailPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-gray-500">Payment refund</span>
                           <span className={`font-medium ${refundStatus.refund?.payoutStatus === 'processed' || refundStatus.refund?.transactionId ? 'text-green-600' :
-                              refundStatus.refund?.payoutStatus === 'failed' ? 'text-red-500' : 'text-yellow-600'
+                            refundStatus.refund?.payoutStatus === 'failed' ? 'text-red-500' : 'text-yellow-600'
                             }`}>
                             {refundStatus.refund?.payoutStatus === 'processed' || refundStatus.refund?.transactionId
                               ? '✓ Completed'
@@ -714,11 +729,10 @@ export default function OrderDetailPage() {
                                     className="p-0.5"
                                   >
                                     <Star
-                                      className={`w-6 h-6 transition-colors ${
-                                        star <= (reviewHover || reviewRating)
-                                          ? "text-yellow-400 fill-yellow-400"
-                                          : "text-gray-300"
-                                      }`}
+                                      className={`w-6 h-6 transition-colors ${star <= (reviewHover || reviewRating)
+                                        ? "text-yellow-400 fill-yellow-400"
+                                        : "text-gray-300"
+                                        }`}
                                     />
                                   </button>
                                 ))}

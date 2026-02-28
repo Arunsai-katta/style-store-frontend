@@ -7,9 +7,9 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { orderAPI } from "@/services/api";
-import { formatDate, formatPrice } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { Package, ShoppingBag, ChevronRight } from "lucide-react";
+import { Package, ShoppingBag, ChevronRight, CreditCard, Clock, CheckCircle2, AlertCircle, Banknote, RotateCcw } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface OrderItem {
@@ -136,16 +136,21 @@ export default function OrdersPage() {
                   {/* Header */}
                   <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-gray-400" />
                       <span className="font-semibold text-sm text-gray-900">#{order.orderNumber}</span>
                       <span className="text-gray-300">·</span>
                       <span className="text-xs text-gray-500">{formatDate(order.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${status.color}`}>
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${status.color}`}>
+                        <Package className="w-3.5 h-3.5" />
                         {status.label}
                       </span>
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${payStatus.color}`}>
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${payStatus.color}`}>
+                        {order.payment?.status === 'completed' ? <CheckCircle2 className="w-3.5 h-3.5" /> :
+                          order.payment?.status === 'partially_paid' ? <Banknote className="w-3.5 h-3.5" /> :
+                            order.payment?.status === 'failed' ? <AlertCircle className="w-3.5 h-3.5" /> :
+                              order.payment?.status === 'refunded' ? <RotateCcw className="w-3.5 h-3.5" /> :
+                                <Clock className="w-3.5 h-3.5" />}
                         {payStatus.label}
                       </span>
                     </div>

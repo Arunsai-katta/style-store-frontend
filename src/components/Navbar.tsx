@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
+import { useWishlistStore } from '@/store/wishlistStore';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -21,8 +22,27 @@ export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { isAuthenticated, user, logout } = useAuthStore();
   const { getItemCount } = useCartStore();
+  const { fetchWishlist, isInitialized } = useWishlistStore();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      if (pathname === '/shop') {
+        const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
+        const params = new URLSearchParams(currentSearch);
+        params.set('q', searchQuery.trim());
+        router.push(`/shop?${params.toString()}`);
+      } else {
+        router.push(`/shop?q=${encodeURIComponent(searchQuery.trim())}`);
+      }
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   const cartItemCount = getItemCount();
 
@@ -38,6 +58,12 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && !isInitialized) {
+      fetchWishlist();
+    }
+  }, [isAuthenticated, isInitialized, fetchWishlist]);
 
   const navLinks = [
     { name: 'Home', href: '/' },
@@ -206,20 +232,24 @@ export default function Navbar() {
               className="border-t border-gray-100 overflow-hidden"
             >
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div className="relative">
+                <form onSubmit={handleSearch} className="relative">
                   <input
                     type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search for products..."
                     className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    autoFocus
                   />
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <button
+                    type="button"
                     onClick={() => setIsSearchOpen(false)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-5 h-5" />
                   </button>
-                </div>
+                </form>
               </div>
             </motion.div>
           )}
