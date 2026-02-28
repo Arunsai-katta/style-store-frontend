@@ -48,7 +48,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Returns', href: '/admin/returns', icon: RotateCcw },
-    { name: 'Statistics', href: '/admin/statistics', icon: BarChart3 },
     { name: 'Customers', href: '/admin/customers', icon: Users },
   ];
 
@@ -60,9 +59,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 bg-black text-white transition-all duration-300 ${
-          isSidebarOpen ? 'w-64' : 'w-0 lg:w-20'
-        } overflow-hidden`}
+        className={`fixed lg:static inset-y-0 left-0 z-50 bg-black text-white transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-0 lg:w-20'
+          } overflow-hidden`}
       >
         <div className="h-full flex flex-col">
           {/* Logo */}
@@ -85,11 +83,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
                       ? 'bg-primary text-white'
                       : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
                   <span className={`${!isSidebarOpen && 'lg:hidden'}`}>{item.name}</span>

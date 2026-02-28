@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  X,
+  ChevronDown,
 } from 'lucide-react';
 import { adminAPI } from '@/services/api';
 import { formatPrice } from '@/lib/utils';
@@ -89,7 +91,7 @@ export default function AdminProducts() {
   };
 
   const getTotalStock = (product: Product) => {
-    return product.colorVariants?.reduce((total, cv) => 
+    return product.colorVariants?.reduce((total, cv) =>
       total + cv.sizes?.reduce((s, size) => s + (size.quantity || 0), 0), 0
     ) || 0;
   };
@@ -122,40 +124,80 @@ export default function AdminProducts() {
       <div className="bg-white rounded-xl p-4 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Search products by name or SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                title="Clear search"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
           <div className="flex gap-4">
-            <select
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Categories</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-              ))}
-            </select>
-            <select
-              value={stockFilter}
-              onChange={(e) => {
-                setStockFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Stock</option>
-              <option value="low">Low Stock</option>
-            </select>
+            <div className="relative min-w-[160px]">
+              <select
+                value={categoryFilter}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white bg-none cursor-pointer"
+              >
+                <option value="" disabled hidden>Filter by Category</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                ))}
+              </select>
+              {categoryFilter ? (
+                <button
+                  onClick={() => { setCategoryFilter(''); setCurrentPage(1); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Clear filter"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              ) : (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              )}
+            </div>
+
+            <div className="relative min-w-[140px]">
+              <select
+                value={stockFilter}
+                onChange={(e) => {
+                  setStockFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white bg-none cursor-pointer"
+              >
+                <option value="" disabled hidden>Filter by Stock</option>
+                <option value="low">Low Stock</option>
+              </select>
+              {stockFilter ? (
+                <button
+                  onClick={() => { setStockFilter(''); setCurrentPage(1); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Clear filter"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              ) : (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -275,11 +317,10 @@ export default function AdminProducts() {
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            product.isActive
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${product.isActive
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-600'
+                            }`}>
                             {product.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>

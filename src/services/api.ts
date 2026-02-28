@@ -234,14 +234,6 @@ export const returnAPI = {
 export const dashboardAPI = {
   getStats: (params?: Record<string, any>) =>
     api.get('/dashboard/stats', { params }),
-  getSalesStats: (params?: Record<string, any>) =>
-    api.get('/dashboard/sales', { params }),
-  getProductStats: (params?: Record<string, any>) =>
-    api.get('/dashboard/products', { params }),
-  getCustomerStats: (params?: Record<string, any>) =>
-    api.get('/dashboard/customers', { params }),
-  getOrderStats: (params?: Record<string, any>) =>
-    api.get('/dashboard/orders', { params }),
 };
 
 // Admin APIs

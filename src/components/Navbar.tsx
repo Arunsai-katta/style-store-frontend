@@ -28,6 +28,42 @@ export default function Navbar() {
   const { fetchWishlist, isInitialized } = useWishlistStore();
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    if (pathname === '/shop' && typeof window !== 'undefined') {
+      const currentParams = new URLSearchParams(window.location.search);
+      const q = currentParams.get('q');
+      if (q) {
+        setSearchQuery(q);
+        setIsSearchOpen(true);
+      }
+    }
+  }, [pathname]);
+
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (debouncedSearchQuery.trim()) {
+      if (pathname === '/shop') {
+        const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
+        const params = new URLSearchParams(currentSearch);
+        params.set('q', debouncedSearchQuery.trim());
+        router.push(`/shop?${params.toString()}`);
+      } else {
+        router.push(`/shop?q=${encodeURIComponent(debouncedSearchQuery.trim())}`);
+      }
+    }
+  }, [debouncedSearchQuery, pathname, router]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -39,8 +75,6 @@ export default function Navbar() {
       } else {
         router.push(`/shop?q=${encodeURIComponent(searchQuery.trim())}`);
       }
-      setIsSearchOpen(false);
-      setSearchQuery('');
     }
   };
 
@@ -133,7 +167,10 @@ export default function Navbar() {
             <div className="flex items-center gap-4">
               {/* Search */}
               <button
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                onClick={() => {
+                  if (isSearchOpen) setSearchQuery('');
+                  setIsSearchOpen(!isSearchOpen);
+                }}
                 className="p-2 text-gray-700 hover:text-primary transition-colors"
               >
                 <Search className="w-5 h-5" />
@@ -244,7 +281,10 @@ export default function Navbar() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <button
                     type="button"
-                    onClick={() => setIsSearchOpen(false)}
+                    onClick={() => {
+                      setIsSearchOpen(false);
+                      setSearchQuery('');
+                    }}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-5 h-5" />
