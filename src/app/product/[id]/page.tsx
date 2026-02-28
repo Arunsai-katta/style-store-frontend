@@ -221,23 +221,25 @@ export default function ProductDetailPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-black mb-2">{product.name}</h1>
               
               {/* Rating */}
-              <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                        i < Math.round(averageRating)
-                          ? 'text-yellow-400 fill-yellow-400'
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
+              {totalReviews > 0 && (
+                <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                          i < Math.round(averageRating)
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm sm:text-base text-gray-600">
+                    {averageRating} ({totalReviews} reviews)
+                  </span>
                 </div>
-                <span className="text-sm sm:text-base text-gray-600">
-                  {averageRating} ({totalReviews} reviews)
-                </span>
-              </div>
+              )}
             </div>
 
             {/* Price */}
@@ -390,7 +392,7 @@ export default function ProductDetailPage() {
           <div className="flex border-b border-gray-200 overflow-x-auto">
             {[
               { key: 'description', label: 'Description' },
-              { key: 'reviews', label: `Reviews (${totalReviews})` },
+              ...(totalReviews > 0 ? [{ key: 'reviews', label: `Reviews (${totalReviews})` }] : []),
               { key: 'shipping', label: 'Shipping Info' },
             ].map((tab) => (
               <button
@@ -461,7 +463,10 @@ export default function ProductDetailPage() {
                 animate={{ opacity: 1 }}
               >
                 {reviews.length === 0 ? (
-                  <p className="text-gray-600">No reviews yet. Be the first to review!</p>
+                  <div className="text-center py-8">
+                    <p className="text-gray-600 mb-2">No reviews yet. Be the first to review!</p>
+                    <p className="text-sm text-gray-400">Purchased this product? <Link href="/orders" className="text-primary hover:underline">Go to your orders</Link> to write a review.</p>
+                  </div>
                 ) : (
                   <div className="space-y-6">
                     {reviews.map((review) => (
@@ -488,9 +493,14 @@ export default function ProductDetailPage() {
                             </div>
                           </div>
                         </div>
+                        {review.title && <p className="font-medium text-gray-900 mb-1">{review.title}</p>}
                         <p className="text-gray-600">{review.comment}</p>
+                        {review.isVerifiedPurchase && (
+                          <span className="inline-block mt-2 text-xs text-green-600 font-medium">✓ Verified Purchase</span>
+                        )}
                       </div>
                     ))}
+                    <p className="text-sm text-gray-400 pt-2">Purchased this product? <Link href="/orders" className="text-primary hover:underline">Go to your orders</Link> to write a review.</p>
                   </div>
                 )}
               </motion.div>

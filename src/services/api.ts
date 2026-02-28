@@ -138,6 +138,8 @@ export const orderAPI = {
     api.get(`/orders/number/${orderNumber}`),
   cancelOrder: (id: string) =>
     api.put(`/orders/${id}/cancel`),
+  retryPayment: (id: string) =>
+    api.post(`/orders/${id}/retry-payment`),
   getTracking: (id: string) =>
     api.get(`/orders/${id}/tracking`),
 

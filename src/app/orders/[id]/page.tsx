@@ -6,10 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { orderAPI, returnAPI } from "@/services/api";
+import { orderAPI, returnAPI, paymentAPI, reviewAPI } from "@/services/api";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { Package, ArrowLeft, MapPin, CreditCard, ExternalLink, Truck, CheckCircle2, Clock, Box, RotateCcw, Banknote, Smartphone, AlertCircle } from "lucide-react";
+import { Package, ArrowLeft, MapPin, CreditCard, ExternalLink, Truck, CheckCircle2, Clock, Box, RotateCcw, Banknote, Smartphone, AlertCircle, Star, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import type { Order } from "@/types";
 
@@ -36,6 +36,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700" },
+  partially_paid: { label: "Partially Paid", color: "bg-orange-100 text-orange-700" },
   completed: { label: "Paid", color: "bg-green-100 text-green-700" },
   failed: { label: "Failed", color: "bg-red-100 text-red-700" },
   refunded: { label: "Refunded", color: "bg-gray-100 text-gray-600" },
@@ -56,6 +57,16 @@ export default function OrderDetailPage() {
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
   const [existingReturn, setExistingReturn] = useState<any>(null);
   const [refundStatus, setRefundStatus] = useState<any>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  // Review state
+  const [reviewingItemId, setReviewingItemId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewTitle, setReviewTitle] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [submittedReviews, setSubmittedReviews] = useState<Record<string, boolean>>({});
 
   const orderId =
     typeof params?.id === "string" ? params.id
@@ -85,6 +96,18 @@ export default function OrderDetailPage() {
             setRefundStatus(statusRes.data);
           }
         }
+      } catch { }
+      // Check which items already have reviews
+      try {
+        const myReviewsRes = await reviewAPI.getMyReviews();
+        const myReviews = myReviewsRes.data.reviews || [];
+        const reviewed: Record<string, boolean> = {};
+        for (const r of myReviews) {
+          if ((r.order === orderId || r.order?._id === orderId)) {
+            reviewed[r.product?._id || r.product] = true;
+          }
+        }
+        setSubmittedReviews(reviewed);
       } catch { }
     } catch {
       toast.error("Failed to load order details");
@@ -128,6 +151,108 @@ export default function OrderDetailPage() {
   };
 
   if (!isAuthenticated) return null;
+
+  const handleSubmitReview = async (productId: string) => {
+    if (!order) return;
+    if (!reviewComment.trim()) {
+      toast.error("Please write a review comment");
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      await reviewAPI.createReview({
+        productId,
+        orderId: order._id,
+        rating: reviewRating,
+        title: reviewTitle.trim() || undefined,
+        comment: reviewComment.trim(),
+      });
+      toast.success("Review submitted successfully!");
+      setSubmittedReviews(prev => ({ ...prev, [productId]: true }));
+      setReviewingItemId(null);
+      setReviewRating(5);
+      setReviewHover(0);
+      setReviewComment("");
+      setReviewTitle("");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Failed to submit review");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  // Load Razorpay script dynamically
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof window === "undefined") { resolve(false); return; }
+      if (document.getElementById("razorpay-js")) { resolve(true); return; }
+      const script = document.createElement("script");
+      script.id = "razorpay-js";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRetryPayment = async () => {
+    if (!order) return;
+    setIsRetrying(true);
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || typeof window === "undefined" || !(window as any).Razorpay) {
+        toast.error("Unable to load payment gateway. Please try again.");
+        setIsRetrying(false);
+        return;
+      }
+
+      const res = await orderAPI.retryPayment(order._id);
+      const { paymentData } = res.data;
+
+      if (!paymentData || !paymentData.orderId) {
+        toast.error("Failed to initiate payment");
+        setIsRetrying(false);
+        return;
+      }
+
+      const { data: { key } } = await paymentAPI.getRazorpayKey();
+
+      const options = {
+        key,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        name: "StayRaw",
+        description: "Order Payment",
+        order_id: paymentData.orderId,
+        handler: async function (response: any) {
+          try {
+            await orderAPI.verifyPayment({
+              orderId: order._id,
+              razorpayOrderId: paymentData.orderId,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            toast.success("Payment successful!");
+            fetchOrder(); // Refresh order state
+          } catch {
+            toast.error("Payment verification failed");
+          }
+        },
+        prefill: {
+          name: order.shippingAddress.name,
+          contact: order.shippingAddress.phone,
+        },
+        theme: { color: "#000" },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to initiate payment");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   const status = order ? (statusConfig[order.status] ?? { label: order.status, color: "bg-gray-100 text-gray-700" }) : null;
   const payStatus = order ? (paymentStatusConfig[order.payment?.status] ?? { label: order.payment?.status, color: "bg-gray-100 text-gray-600" }) : null;
@@ -330,6 +455,34 @@ export default function OrderDetailPage() {
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${payStatus.color}`}>{payStatus.label}</span>
                     )}
                   </div>
+                  {/* Show COD advance info */}
+                  {order.payment.method === 'cod' && (order.payment as any).codAdvanceAmount > 0 && (
+                    <div className="flex justify-between text-xs text-gray-500 pt-1">
+                      <span>Advance Paid</span>
+                      <span className="font-medium text-gray-700">{formatPrice((order.payment as any).codAdvanceAmount)}</span>
+                    </div>
+                  )}
+                  {order.payment.method === 'cod' && (order.payment as any).codAdvanceAmount > 0 && (
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Remaining (Pay on Delivery)</span>
+                      <span className="font-medium text-gray-700">{formatPrice(order.pricing.total - ((order.payment as any).codAdvanceAmount || 0))}</span>
+                    </div>
+                  )}
+                  {/* Retry Payment for pending Razorpay orders */}
+                  {order.status === 'pending' && order.payment.method === 'razorpay' && order.payment.status === 'pending' && (
+                    <div className="pt-2 space-y-2">
+                      <p className="text-xs text-amber-600">
+                        Payment was not completed. Complete your payment to confirm this order, or it will be automatically cancelled.
+                      </p>
+                      <button
+                        onClick={handleRetryPayment}
+                        disabled={isRetrying}
+                        className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        {isRetrying ? "Processing…" : "Pay Now"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -489,6 +642,132 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ── Write a Review Section ────────────────────────────── */}
+            {order.status === 'delivered' && (
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <h2 className="font-semibold text-gray-900">Write a Review</h2>
+                </div>
+                <div className="space-y-4">
+                  {order.items.map((item: any) => {
+                    const productId = typeof item.product === "object" ? item.product?._id : item.product;
+                    const alreadyReviewed = submittedReviews[productId];
+                    const isReviewing = reviewingItemId === item._id;
+
+                    return (
+                      <div key={item._id} className="border rounded-xl p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 relative flex-shrink-0">
+                            {item.colorVariant?.image ? (
+                              <Image src={item.colorVariant.image} alt={item.name} fill className="object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-4 h-4 text-gray-300" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-900 line-clamp-1">{item.name}</p>
+                            <p className="text-xs text-gray-500">{item.colorVariant?.colorName} · Size {item.size}</p>
+                          </div>
+                          {alreadyReviewed ? (
+                            <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-700 flex items-center gap-1 flex-shrink-0">
+                              <CheckCircle2 className="w-3 h-3" /> Reviewed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (isReviewing) {
+                                  setReviewingItemId(null);
+                                } else {
+                                  setReviewingItemId(item._id);
+                                  setReviewRating(5);
+                                  setReviewHover(0);
+                                  setReviewComment("");
+                                  setReviewTitle("");
+                                }
+                              }}
+                              className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0"
+                            >
+                              {isReviewing ? "Cancel" : "Write Review"}
+                            </button>
+                          )}
+                        </div>
+
+                        {isReviewing && (
+                          <div className="mt-4 space-y-3 border-t pt-4">
+                            {/* Star Rating */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1.5">Rating</label>
+                              <div className="flex gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setReviewRating(star)}
+                                    onMouseEnter={() => setReviewHover(star)}
+                                    onMouseLeave={() => setReviewHover(0)}
+                                    className="p-0.5"
+                                  >
+                                    <Star
+                                      className={`w-6 h-6 transition-colors ${
+                                        star <= (reviewHover || reviewRating)
+                                          ? "text-yellow-400 fill-yellow-400"
+                                          : "text-gray-300"
+                                      }`}
+                                    />
+                                  </button>
+                                ))}
+                                <span className="text-sm text-gray-500 ml-2 self-center">
+                                  {reviewRating}/5
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Title */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Title (optional)</label>
+                              <input
+                                type="text"
+                                value={reviewTitle}
+                                onChange={(e) => setReviewTitle(e.target.value)}
+                                placeholder="Summarize your experience"
+                                maxLength={100}
+                                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                              />
+                            </div>
+
+                            {/* Comment */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Review <span className="text-red-500">*</span></label>
+                              <textarea
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                                placeholder="Share your thoughts about this product..."
+                                maxLength={1000}
+                                rows={3}
+                                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                              />
+                              <p className="text-xs text-gray-400 mt-0.5">{reviewComment.length}/1000</p>
+                            </div>
+
+                            <button
+                              onClick={() => handleSubmitReview(productId)}
+                              disabled={isSubmittingReview || !reviewComment.trim()}
+                              className="w-full py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                            >
+                              {isSubmittingReview ? "Submitting…" : "Submit Review"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

@@ -174,7 +174,7 @@ export interface OrderItem {
 
 export interface PaymentDetails {
   method: 'cod' | 'razorpay' | 'wallet';
-  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'partially_refunded';
+  status: 'pending' | 'partially_paid' | 'completed' | 'failed' | 'refunded' | 'partially_refunded';
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;

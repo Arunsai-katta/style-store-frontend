@@ -50,6 +50,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700' },
+  partially_paid: { label: 'Partially Paid', color: 'bg-orange-100 text-orange-700' },
   completed: { label: 'Paid', color: 'bg-green-100 text-green-700' },
   failed: { label: 'Failed', color: 'bg-red-100 text-red-700' },
   refunded: { label: 'Refunded', color: 'bg-gray-100 text-gray-600' },

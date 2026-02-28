@@ -370,6 +370,9 @@ export default function CheckoutPage() {
       };
 
       const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function () {
+        toast.error("Payment failed. You can retry from your Orders page.");
+      });
       rzp.open();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Payment failed");

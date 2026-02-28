@@ -182,28 +182,8 @@ export default function ShopPage() {
         </div>
       </div>
 
-      {/* Search + Toolbar */}
+      {/* Toolbar (no search) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => handleSearchInput(e.target.value)}
-            placeholder="Search products…"
-            className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm bg-white shadow-sm"
-          />
-          {inputValue && (
-            <button
-              onClick={() => handleSearchInput('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-8">
           <div className="flex items-center gap-2 sm:gap-4">
             <button
