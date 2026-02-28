@@ -14,7 +14,7 @@ import ProductCard from '@/components/ProductCard';
 const features = [
   { icon: Truck, title: 'Free Delivery', description: 'Orders above ₹5000', color: 'bg-blue-50 text-blue-600' },
   { icon: Shield, title: 'Secure Pay', description: '100% safe checkout', color: 'bg-green-50 text-green-600' },
-  { icon: RotateCcw, title: 'Easy Returns', description: '30-day policy', color: 'bg-orange-50 text-orange-500' },
+  { icon: RotateCcw, title: 'Easy Returns', description: '7-day policy', color: 'bg-orange-50 text-orange-500' },
   { icon: Headphones, title: '24/7 Support', description: 'Always here for you', color: 'bg-purple-50 text-purple-600' },
 ];
 

@@ -26,17 +26,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { isAuthenticated, isAdmin, logout, user } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // useEffect(() => {
-  //   if (!isAuthenticated) {
-  //     router.push('/login');
-  //     return;
-  //   }
-  //   if (!isAdmin) {
-  //     toast.error('Access denied. Admin only.');
-  //     router.push('/');
-  //     return;
-  //   }
-  // }, [isAuthenticated, isAdmin, router]);
+  // Handle responsive sidebar state
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    // Initial check
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -57,6 +69,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 bg-black text-white transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-0 lg:w-20'
@@ -84,8 +104,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={item.name}
                   href={item.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
-                      ? 'bg-primary text-white'
-                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    ? 'bg-primary text-white'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                     }`}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />

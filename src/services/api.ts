@@ -52,7 +52,9 @@ api.interceptors.response.use(
 
 // Auth APIs
 export const authAPI = {
-  register: (data: { name: string; email: string; phone?: string; password: string }) =>
+  sendOtp: (data: { email: string }) =>
+    api.post('/auth/send-otp', data),
+  register: (data: { name: string; email: string; phone?: string; password: string; otp: string }) =>
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
