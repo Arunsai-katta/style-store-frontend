@@ -8,6 +8,7 @@ import { Product } from '@/types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import RangeSlider from '@/components/RangeSlider';
 import { formatPrice } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -41,6 +42,21 @@ export default function ShopPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+
+  // Local state for smooth slider dragging
+  const [localPriceRange, setLocalPriceRange] = useState<[number, number] | null>(null);
+  const minPriceLimit = availableFilters?.priceRange?.minPrice || 0;
+  const maxPriceLimit = availableFilters?.priceRange?.maxPrice || 10000;
+
+  // Sync local price range with active filters or limits
+  useEffect(() => {
+    if (availableFilters?.priceRange) {
+      setLocalPriceRange([
+        filters.minPrice ? Number(filters.minPrice) : minPriceLimit,
+        filters.maxPrice ? Number(filters.maxPrice) : maxPriceLimit,
+      ]);
+    }
+  }, [filters.minPrice, filters.maxPrice, minPriceLimit, maxPriceLimit, availableFilters]);
 
   // Update filters when URL search params change
   useEffect(() => {
@@ -261,22 +277,33 @@ export default function ShopPage() {
               {/* Price Filter */}
               <div>
                 <h3 className="font-semibold text-black mb-4">Price Range</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minPrice}
-                    onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-                  />
-                  <span className="text-gray-400">-</span>
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxPrice}
-                    onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-                  />
+                <div className="px-2">
+                  {localPriceRange ? (
+                    <>
+                      <RangeSlider
+                        min={minPriceLimit}
+                        max={maxPriceLimit}
+                        value={localPriceRange}
+                        onChange={(val) => setLocalPriceRange(val)}
+                        onChangeEnd={(val) => {
+                          const params = new URLSearchParams(searchParams.toString());
+
+                          // Only set if different from absolute limits to save URL space,
+                          // but for explicit filtering setting them is safer.
+                          params.set('minPrice', val[0].toString());
+                          params.set('maxPrice', val[1].toString());
+
+                          router.push(`/shop?${params.toString()}`, { scroll: false });
+                        }}
+                      />
+                      <div className="flex justify-between items-center mt-4 text-sm text-gray-600 font-medium z-10 mx-[-8px]">
+                        <span>{formatPrice(localPriceRange[0])}</span>
+                        <span>{formatPrice(localPriceRange[1])}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-8 w-full bg-gray-100 rounded animate-pulse" />
+                  )}
                 </div>
               </div>
 
