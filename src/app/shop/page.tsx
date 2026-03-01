@@ -8,6 +8,7 @@ import { Product } from '@/types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import RangeSlider from '@/components/RangeSlider';
 import { formatPrice } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -41,8 +42,21 @@ export default function ShopPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [inputValue, setInputValue] = useState(searchParams.get('q') || '');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Local state for smooth slider dragging
+  const [localPriceRange, setLocalPriceRange] = useState<[number, number] | null>(null);
+  const minPriceLimit = availableFilters?.priceRange?.minPrice || 0;
+  const maxPriceLimit = availableFilters?.priceRange?.maxPrice || 10000;
+
+  // Sync local price range with active filters or limits
+  useEffect(() => {
+    if (availableFilters?.priceRange) {
+      setLocalPriceRange([
+        filters.minPrice ? Number(filters.minPrice) : minPriceLimit,
+        filters.maxPrice ? Number(filters.maxPrice) : maxPriceLimit,
+      ]);
+    }
+  }, [filters.minPrice, filters.maxPrice, minPriceLimit, maxPriceLimit, availableFilters]);
 
   // Update filters when URL search params change
   useEffect(() => {
@@ -56,7 +70,6 @@ export default function ShopPage() {
     });
     const q = searchParams.get('q') || '';
     setSearchQuery(q);
-    setInputValue(q);
     setCurrentPage(1);
   }, [searchParams]);
 
@@ -133,20 +146,8 @@ export default function ShopPage() {
       sort: '-createdAt',
     });
     setSearchQuery('');
-    setInputValue('');
     setCurrentPage(1);
     router.push('/shop');
-  };
-
-  const handleSearchInput = (val: string) => {
-    setInputValue(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setCurrentPage(1);
-      const params = new URLSearchParams(searchParams.toString());
-      if (val) { params.set('q', val); } else { params.delete('q'); }
-      router.push(`/shop?${params.toString()}`, { scroll: false });
-    }, 400);
   };
 
   const hasActiveFilters = Object.values(filters).some(v => v !== '' && v !== '-createdAt') || !!searchQuery;
@@ -208,16 +209,12 @@ export default function ShopPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
-            <span className="text-gray-600 text-xs sm:text-sm">
-              <span className="hidden sm:inline">Showing </span>
-              {products.length}<span className="hidden sm:inline"> of {totalProducts} products</span>
-            </span>
+          <div className="flex items-center justify-end gap-2 sm:gap-4">
 
             <select
               value={filters.sort}
               onChange={(e) => handleFilterChange('sort', e.target.value)}
-              className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base bg-white"
+              className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base bg-white shadow-sm"
             >
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -240,8 +237,8 @@ export default function ShopPage() {
           {/* Sidebar Filters */}
           <aside
             className={`${isFilterOpen
-                ? 'fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto w-[85%] sm:w-[320px] lg:w-[280px]'
-                : 'hidden lg:block lg:w-[280px]'
+              ? 'fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto w-[85%] sm:w-[320px] lg:w-[280px]'
+              : 'hidden lg:block lg:w-[280px]'
               } overflow-hidden flex-shrink-0 transition-transform duration-300 lg:transition-none`}
           >
             <div className={`w-full h-full lg:h-auto bg-white lg:bg-transparent p-4 lg:p-0 space-y-8 overflow-y-auto lg:overflow-visible shadow-lg lg:shadow-none`}>
@@ -280,22 +277,33 @@ export default function ShopPage() {
               {/* Price Filter */}
               <div>
                 <h3 className="font-semibold text-black mb-4">Price Range</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minPrice}
-                    onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-                  />
-                  <span className="text-gray-400">-</span>
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxPrice}
-                    onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-                  />
+                <div className="px-2">
+                  {localPriceRange ? (
+                    <>
+                      <RangeSlider
+                        min={minPriceLimit}
+                        max={maxPriceLimit}
+                        value={localPriceRange}
+                        onChange={(val) => setLocalPriceRange(val)}
+                        onChangeEnd={(val) => {
+                          const params = new URLSearchParams(searchParams.toString());
+
+                          // Only set if different from absolute limits to save URL space,
+                          // but for explicit filtering setting them is safer.
+                          params.set('minPrice', val[0].toString());
+                          params.set('maxPrice', val[1].toString());
+
+                          router.push(`/shop?${params.toString()}`, { scroll: false });
+                        }}
+                      />
+                      <div className="flex justify-between items-center mt-4 text-sm text-gray-600 font-medium z-10 mx-[-8px]">
+                        <span>{formatPrice(localPriceRange[0])}</span>
+                        <span>{formatPrice(localPriceRange[1])}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-8 w-full bg-gray-100 rounded animate-pulse" />
+                  )}
                 </div>
               </div>
 
@@ -309,8 +317,8 @@ export default function ShopPage() {
                         key={color.name}
                         onClick={() => handleFilterChange('color', filters.color === color.name ? '' : color.name)}
                         className={`w-10 h-10 rounded-full border-2 transition-all ${filters.color === color.name
-                            ? 'border-primary scale-110'
-                            : 'border-gray-300'
+                          ? 'border-primary scale-110'
+                          : 'border-gray-300'
                           }`}
                         style={{ backgroundColor: color.code }}
                         title={color.name}
@@ -330,8 +338,8 @@ export default function ShopPage() {
                         key={size}
                         onClick={() => handleFilterChange('size', filters.size === size ? '' : size)}
                         className={`px-4 py-2 border-2 rounded-lg text-sm font-medium transition-all ${filters.size === size
-                            ? 'border-primary bg-primary text-white'
-                            : 'border-gray-300 text-gray-700'
+                          ? 'border-primary bg-primary text-white'
+                          : 'border-gray-300 text-gray-700'
                           }`}
                       >
                         {size}
@@ -396,8 +404,8 @@ export default function ShopPage() {
                           key={i + 1}
                           onClick={() => setCurrentPage(i + 1)}
                           className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm sm:text-base ${currentPage === i + 1
-                              ? 'bg-primary text-white'
-                              : 'border border-gray-300 hover:bg-gray-50'
+                            ? 'bg-primary text-white'
+                            : 'border border-gray-300 hover:bg-gray-50'
                             }`}
                         >
                           {i + 1}
@@ -409,8 +417,8 @@ export default function ShopPage() {
                           <button
                             onClick={() => setCurrentPage(totalPages)}
                             className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm sm:text-base ${currentPage === totalPages
-                                ? 'bg-primary text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
+                              ? 'bg-primary text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
                               }`}
                           >
                             {totalPages}

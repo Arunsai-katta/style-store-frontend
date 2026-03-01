@@ -51,12 +51,22 @@ export default function AdminDashboard() {
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState('month');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const params: any = {};
+        if (dateFilter === 'custom') {
+          if (fromDate) params.startDate = fromDate;
+          if (toDate) params.endDate = toDate;
+        } else {
+          params.dateRange = dateFilter;
+        }
+
         const [statsRes, overviewRes] = await Promise.all([
-          dashboardAPI.getStats(),
+          dashboardAPI.getStats(params),
           adminAPI.getOverview(),
         ]);
 
@@ -73,39 +83,31 @@ export default function AdminDashboard() {
     };
 
     fetchData();
-  }, [dateFilter]);
+  }, [dateFilter, fromDate, toDate]);
 
   const statCards = [
     {
       name: 'Total Revenue',
       value: stats?.totalRevenue || 0,
       icon: DollarSign,
-      change: '+12%',
-      changeType: 'positive',
       format: 'price',
     },
     {
       name: 'Total Orders',
       value: stats?.totalOrders || 0,
       icon: ShoppingBag,
-      change: '+8%',
-      changeType: 'positive',
       format: 'number',
     },
     {
       name: 'Pending Orders',
       value: stats?.pendingOrders || 0,
       icon: Package,
-      change: '-3%',
-      changeType: 'negative',
       format: 'number',
     },
     {
       name: 'Total Customers',
       value: stats?.totalCustomers || 0,
       icon: Users,
-      change: '+15%',
-      changeType: 'positive',
       format: 'number',
     },
   ];
@@ -128,21 +130,54 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-black">Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here&apos;s what&apos;s happening today.</p>
         </div>
-        <select
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="today">Today</option>
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-          <option value="year">This Year</option>
-        </select>
+        <div className="flex flex-wrap gap-4 items-center">
+          <select
+            value={dateFilter}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              if (e.target.value !== 'custom') {
+                setFromDate('');
+                setToDate('');
+              }
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-none appearance-none pr-10"
+          >
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+            <option value="custom">Custom Range</option>
+          </select>
+
+          {dateFilter === 'custom' && (
+            <>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">From:</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">To:</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  min={fromDate}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -158,16 +193,6 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
                 <stat.icon className="w-6 h-6 text-primary" />
-              </div>
-              <div className={`flex items-center gap-1 text-sm ${
-                stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {stat.changeType === 'positive' ? (
-                  <TrendingUp className="w-4 h-4" />
-                ) : (
-                  <TrendingDown className="w-4 h-4" />
-                )}
-                {stat.change}
               </div>
             </div>
             <p className="text-gray-600 text-sm">{stat.name}</p>
@@ -284,13 +309,12 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="font-medium text-sm">{formatPrice(order.pricing?.total)}</p>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    order.status === 'delivered'
-                      ? 'bg-green-100 text-green-700'
-                      : order.status === 'pending'
+                  <span className={`text-xs px-2 py-1 rounded-full ${order.status === 'delivered'
+                    ? 'bg-green-100 text-green-700'
+                    : order.status === 'pending'
                       ? 'bg-yellow-100 text-yellow-700'
                       : 'bg-blue-100 text-blue-700'
-                  }`}>
+                    }`}>
                     {order.status}
                   </span>
                 </div>
@@ -334,7 +358,7 @@ export default function AdminDashboard() {
                     <td className="py-3 px-4 text-gray-600">{product.sku}</td>
                     <td className="py-3 px-4">
                       <span className="text-red-600 font-medium">
-                        {product.colorVariants?.reduce((total: number, cv: any) => 
+                        {product.colorVariants?.reduce((total: number, cv: any) =>
                           total + cv.sizes?.reduce((s: number, size: any) => s + size.quantity, 0), 0
                         )} units
                       </span>

@@ -9,12 +9,12 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: boolean;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
-  register: (data: { name: string; email: string; phone?: string; password: string }) => Promise<void>;
+  register: (data: { name: string; email: string; phone?: string; password: string; otp: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -29,8 +29,8 @@ export const useAuthStore = create<AuthState>()(
       isAdmin: false,
 
       setUser: (user) => {
-        set({ 
-          user, 
+        set({
+          user,
           isAuthenticated: !!user,
           isAdmin: user?.role === 'admin'
         });
@@ -41,13 +41,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authAPI.login({ email, password });
           const { user, token } = response.data;
-          
+
           Cookies.set('token', token, { expires: 7 });
-          set({ 
-            user, 
+          set({
+            user,
             isAuthenticated: true,
             isAdmin: user.role === 'admin',
-            isLoading: false 
+            isLoading: false
           });
         } catch (error) {
           set({ isLoading: false });
@@ -60,13 +60,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authAPI.adminLogin({ email, password });
           const { user, token } = response.data;
-          
+
           Cookies.set('token', token, { expires: 7 });
-          set({ 
-            user, 
+          set({
+            user,
             isAuthenticated: true,
             isAdmin: true,
-            isLoading: false 
+            isLoading: false
           });
         } catch (error) {
           set({ isLoading: false });
@@ -79,13 +79,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authAPI.register(data);
           const { user, token } = response.data;
-          
+
           Cookies.set('token', token, { expires: 7 });
-          set({ 
-            user, 
+          set({
+            user,
             isAuthenticated: true,
             isAdmin: false,
-            isLoading: false 
+            isLoading: false
           });
         } catch (error) {
           set({ isLoading: false });
@@ -100,11 +100,11 @@ export const useAuthStore = create<AuthState>()(
           console.error('Logout error:', error);
         } finally {
           Cookies.remove('token');
-          set({ 
-            user: null, 
+          set({
+            user: null,
             isAuthenticated: false,
             isAdmin: false,
-            isLoading: false 
+            isLoading: false
           });
         }
       },
@@ -123,15 +123,15 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const response = await authAPI.getMe();
-          set({ 
-            user: response.data.user, 
+          set({
+            user: response.data.user,
             isAuthenticated: true,
             isAdmin: response.data.user.role === 'admin'
           });
         } catch (error) {
           Cookies.remove('token');
-          set({ 
-            user: null, 
+          set({
+            user: null,
             isAuthenticated: false,
             isAdmin: false
           });

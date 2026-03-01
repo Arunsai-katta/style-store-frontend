@@ -10,6 +10,7 @@ import { Product } from '@/types';
 import { formatPrice, calculateDiscount } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
+import { useWishlistStore } from '@/store/wishlistStore';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
@@ -19,6 +20,7 @@ export default function WishlistPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { addItem } = useCartStore();
+  const { removeItem } = useWishlistStore();
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,7 +53,7 @@ export default function WishlistPage() {
 
   const handleRemove = async (productId: string) => {
     try {
-      await userAPI.removeFromWishlist(productId);
+      await removeItem(productId);
       setWishlist(prev => prev.filter(p => p._id !== productId));
       toast.success('Removed from wishlist');
     } catch {
@@ -86,6 +88,8 @@ export default function WishlistPage() {
         size: selectedSize,
         quantity: 1,
       });
+      // Automatically remove from wishlist after adding to cart
+      await handleRemove(pickerProduct._id);
       setPickerProduct(null);
     } catch {
       // error toast handled by store/interceptor
@@ -270,8 +274,8 @@ export default function WishlistPage() {
                         onClick={() => handleColorChange(variant._id)}
                         title={variant.colorName}
                         className={`w-8 h-8 rounded-full border-2 transition-all ${selectedVariantId === variant._id
-                            ? 'border-black scale-110 shadow-md'
-                            : 'border-gray-200 hover:border-gray-400'
+                          ? 'border-black scale-110 shadow-md'
+                          : 'border-gray-200 hover:border-gray-400'
                           }`}
                         style={{ backgroundColor: variant.colorCode }}
                       />
@@ -291,10 +295,10 @@ export default function WishlistPage() {
                           disabled={oos}
                           onClick={() => !oos && setSelectedSize(size)}
                           className={`min-w-[42px] px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${oos
-                              ? 'border-gray-200 text-gray-300 line-through cursor-not-allowed'
-                              : selectedSize === size
-                                ? 'border-black bg-black text-white'
-                                : 'border-gray-300 text-gray-700 hover:border-black'
+                            ? 'border-gray-200 text-gray-300 line-through cursor-not-allowed'
+                            : selectedSize === size
+                              ? 'border-black bg-black text-white'
+                              : 'border-gray-300 text-gray-700 hover:border-black'
                             }`}
                         >
                           {size}

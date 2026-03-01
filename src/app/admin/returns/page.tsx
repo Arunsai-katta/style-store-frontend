@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Search, CheckCircle, XCircle, Eye,
   ChevronLeft, ChevronRight, RotateCcw, X,
-  CreditCard, Smartphone, Banknote, RefreshCw,
+  CreditCard, Smartphone, Banknote, RefreshCw, ChevronDown,
 } from 'lucide-react';
 import { returnAPI } from '@/services/api';
 import { formatPrice, formatDate } from '@/lib/utils';
@@ -171,27 +171,51 @@ export default function AdminReturns() {
       {/* Filters */}
       <div className="bg-white rounded-xl p-4 shadow-sm flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by return #, order #, or customer..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
-        <select
-          value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="inspected">Inspected</option>
-          <option value="rejected">Rejected</option>
-          <option value="refunded">Refunded</option>
-        </select>
+        <div className="relative min-w-[160px]">
+          <select
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="w-full appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white bg-none cursor-pointer"
+          >
+            <option value="" disabled hidden>Filter by Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="inspected">Inspected</option>
+            <option value="rejected">Rejected</option>
+            <option value="refunded">Refunded</option>
+          </select>
+          {statusFilter ? (
+            <button
+              onClick={() => { setStatusFilter(''); setCurrentPage(1); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+              title="Clear filter"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table */}

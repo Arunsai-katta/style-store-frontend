@@ -119,22 +119,22 @@ export default function AccountPage() {
                             <span className="text-gray-500">Full Name</span>
                             <span className="font-medium text-black">{user.name}</span>
                         </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <div className={`flex justify-between items-center py-2 ${user.phone ? 'border-b border-gray-100' : ''}`}>
                             <span className="text-gray-500">Email</span>
                             <span className="font-medium text-black truncate ml-4 text-right">{user.email}</span>
                         </div>
                         {user.phone && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                            <div className="flex justify-between items-center py-2">
                                 <span className="text-gray-500">Phone</span>
                                 <span className="font-medium text-black">{user.phone}</span>
                             </div>
                         )}
-                        <div className="flex justify-between items-center py-2">
+                        {/* <div className="flex justify-between items-center py-2">
                             <span className="text-gray-500">Account Type</span>
                             <span className="px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full capitalize">
                                 {user.role || 'Customer'}
                             </span>
-                        </div>
+                        </div> */}
                     </div>
                 </motion.div>
             </div>

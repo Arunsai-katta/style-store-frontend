@@ -10,18 +10,15 @@ import { Product } from '@/types';
 import { formatPrice, calculateDiscount } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
-import { userAPI } from '@/services/api';
+import { useWishlistStore } from '@/store/wishlistStore';
 import toast from 'react-hot-toast';
 
 interface ProductCardProps {
   product: Product;
   compact?: boolean;
 }
-
 export default function ProductCard({ product, compact = false }: ProductCardProps) {
   const router = useRouter();
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [isLoadingWishlist, setIsLoadingWishlist] = useState(false);
 
   // Quick-add picker state
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -31,21 +28,14 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
 
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const {
+    isInWishlist,
+    addItem: addWishlistItem,
+    removeItem: removeWishlistItem,
+    isLoading: isGlobalWishlistLoading
+  } = useWishlistStore();
 
-  useEffect(() => {
-    const checkWishlist = async () => {
-      if (isAuthenticated) {
-        try {
-          const response = await userAPI.getWishlist();
-          const wishlistIds = response.data.wishlist.map((p: Product) => p._id);
-          setIsWishlisted(wishlistIds.includes(product._id));
-        } catch {
-          // Silently fail
-        }
-      }
-    };
-    checkWishlist();
-  }, [isAuthenticated, product._id]);
+  const isWishlisted = isInWishlist(product._id);
 
   // Set defaults when picker opens
   const openPicker = (e: React.MouseEvent) => {
@@ -115,24 +105,19 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
       return;
     }
 
-    if (isLoadingWishlist) return;
+    if (isGlobalWishlistLoading) return;
 
-    setIsLoadingWishlist(true);
     try {
       if (isWishlisted) {
-        await userAPI.removeFromWishlist(product._id);
-        setIsWishlisted(false);
+        await removeWishlistItem(product._id);
         toast.success('Removed from wishlist');
       } else {
-        await userAPI.addToWishlist(product._id);
-        setIsWishlisted(true);
+        await addWishlistItem(product._id);
         toast.success('Added to wishlist');
       }
     } catch (error: any) {
       console.error('Error updating wishlist:', error);
       toast.error(error.response?.data?.message || 'Failed to update wishlist');
-    } finally {
-      setIsLoadingWishlist(false);
     }
   };
 
@@ -282,8 +267,8 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
                         onClick={() => handleColorChange(variant._id)}
                         title={variant.colorName}
                         className={`w-8 h-8 rounded-full border-2 transition-all ${selectedVariantId === variant._id
-                            ? 'border-primary scale-110 shadow-md'
-                            : 'border-gray-200 hover:border-gray-400'
+                          ? 'border-primary scale-110 shadow-md'
+                          : 'border-gray-200 hover:border-gray-400'
                           }`}
                         style={{ backgroundColor: variant.colorCode }}
                       />
@@ -303,10 +288,10 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
                           onClick={() => !outOfStock && setSelectedSize(size)}
                           disabled={outOfStock}
                           className={`min-w-[42px] px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${outOfStock
-                              ? 'border-gray-200 text-gray-300 line-through cursor-not-allowed'
-                              : selectedSize === size
-                                ? 'border-black bg-black text-white'
-                                : 'border-gray-300 text-gray-700 hover:border-black'
+                            ? 'border-gray-200 text-gray-300 line-through cursor-not-allowed'
+                            : selectedSize === size
+                              ? 'border-black bg-black text-white'
+                              : 'border-gray-300 text-gray-700 hover:border-black'
                             }`}
                         >
                           {size}

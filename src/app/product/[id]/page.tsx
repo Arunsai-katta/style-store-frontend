@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { Star, ShoppingBag, Heart, Share2, Truck, Shield, RotateCcw, Check, ChevronRight, Minus, Plus } from 'lucide-react';
-import { productAPI, reviewAPI, cartAPI } from '@/services/api';
-import { Product, Review } from '@/types';
-import { formatPrice, calculateDiscount } from '@/lib/utils';
-import { useCartStore } from '@/store/cartStore';
-import { useAuthStore } from '@/store/authStore';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import Navbar from '@/components/Navbar';
 import ProductCard from '@/components/ProductCard';
+import { calculateDiscount, formatPrice } from '@/lib/utils';
+import { productAPI, reviewAPI } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
+import { useWishlistStore } from '@/store/wishlistStore';
+import { Product, Review } from '@/types';
+import { motion } from 'framer-motion';
+import { Check, ChevronRight, Heart, Minus, Plus, RotateCcw, Shield, ShoppingBag, Star, Truck } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 export default function ProductDetailPage() {
@@ -22,8 +23,10 @@ export default function ProductDetailPage() {
   const { id } = params;
   const { isAuthenticated } = useAuthStore();
   const { addItem } = useCartStore();
-  
+
   const [product, setProduct] = useState<Product | null>(null);
+  const { isInWishlist, addItem: addWishlistItem, removeItem: removeWishlistItem, isLoading: isWishlistLoading } = useWishlistStore();
+  const isWishlisted = product ? isInWishlist(product._id) : false;
   const [reviews, setReviews] = useState<Review[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,12 +45,12 @@ export default function ProductDetailPage() {
           reviewAPI.getProductReviews(id as string),
           productAPI.getRelatedProducts(id as string),
         ]);
-        
+
         const productData = productRes.data.product;
         setProduct(productData);
         setReviews(reviewsRes.data.reviews || []);
         setRelatedProducts(relatedRes.data.products || []);
-        
+
         // Set default variant and size
         if (productData.colorVariants?.length > 0) {
           const defaultVariant = productData.colorVariants[0];
@@ -70,21 +73,21 @@ export default function ProductDetailPage() {
     }
   }, [id]);
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (): Promise<boolean> => {
     if (!isAuthenticated) {
       router.push(`/login?redirect=${encodeURIComponent(`/product/${id}`)}`);
-      return;
+      return false; // Return false to indicate failure/redirect
     }
 
     if (!selectedVariant || !selectedSize) {
       toast.error('Please select color and size');
-      return;
+      return false;
     }
 
     const sizeData = selectedVariant.sizes?.find((s: any) => s.size === selectedSize);
     if (!sizeData || sizeData.quantity < quantity) {
       toast.error('Insufficient stock');
-      return;
+      return false;
     }
 
     setIsAddingToCart(true);
@@ -95,17 +98,39 @@ export default function ProductDetailPage() {
         size: selectedSize,
         quantity,
       });
+      return true; // Successfully added to cart
     } catch (error) {
       console.error('Error adding to cart:', error);
+      return false;
     } finally {
       setIsAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
-    await handleAddToCart();
-    // Redirect to checkout
-    window.location.href = '/checkout';
+    const success = await handleAddToCart();
+    if (success) {
+      router.push('/cart');
+    }
+  };
+
+  const handleWishlist = async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent(`/product/${id}`)}`);
+      return;
+    }
+    if (isWishlistLoading || !product?._id) return;
+    try {
+      if (isWishlisted) {
+        await removeWishlistItem(product._id);
+        toast.success('Removed from wishlist');
+      } else {
+        await addWishlistItem(product._id);
+        toast.success('Added to wishlist');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update wishlist');
+    }
   };
 
   if (isLoading) {
@@ -150,7 +175,7 @@ export default function ProductDetailPage() {
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
-      
+
       {/* Breadcrumb */}
       <div className="bg-light py-3 sm:py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -187,7 +212,7 @@ export default function ProductDetailPage() {
                 </span>
               )}
             </div>
-            
+
             {/* Thumbnail Gallery */}
             {selectedVariant?.images && selectedVariant.images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
@@ -195,9 +220,8 @@ export default function ProductDetailPage() {
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`w-20 h-20 relative flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === index ? 'border-primary' : 'border-transparent'
-                    }`}
+                    className={`w-20 h-20 relative flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index ? 'border-primary' : 'border-transparent'
+                      }`}
                   >
                     <Image
                       src={image}
@@ -219,7 +243,7 @@ export default function ProductDetailPage() {
                 {product.category}
               </p>
               <h1 className="text-2xl sm:text-3xl font-bold text-black mb-2">{product.name}</h1>
-              
+
               {/* Rating */}
               {totalReviews > 0 && (
                 <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
@@ -227,11 +251,10 @@ export default function ProductDetailPage() {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                          i < Math.round(averageRating)
-                            ? 'text-yellow-400 fill-yellow-400'
-                            : 'text-gray-300'
-                        }`}
+                        className={`w-4 h-4 sm:w-5 sm:h-5 ${i < Math.round(averageRating)
+                          ? 'text-yellow-400 fill-yellow-400'
+                          : 'text-gray-300'
+                          }`}
                       />
                     ))}
                   </div>
@@ -277,11 +300,10 @@ export default function ProductDetailPage() {
                       const availableSize = variant.sizes?.find((s: any) => s.quantity > 0);
                       setSelectedSize(availableSize?.size || '');
                     }}
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${
-                      selectedVariant?._id === variant._id
-                        ? 'border-primary scale-110'
-                        : 'border-gray-200 hover:border-gray-400'
-                    }`}
+                    className={`w-10 h-10 rounded-full border-2 transition-all ${selectedVariant?._id === variant._id
+                      ? 'border-primary scale-110'
+                      : 'border-gray-200 hover:border-gray-400'
+                      }`}
                     style={{ backgroundColor: variant.colorCode }}
                     title={variant.colorName}
                   />
@@ -300,13 +322,12 @@ export default function ProductDetailPage() {
                     key={sizeData.size}
                     onClick={() => setSelectedSize(sizeData.size)}
                     disabled={sizeData.quantity === 0}
-                    className={`w-12 h-12 rounded-lg border-2 font-medium transition-all ${
-                      selectedSize === sizeData.size
-                        ? 'border-primary bg-primary text-white'
-                        : sizeData.quantity === 0
+                    className={`w-12 h-12 rounded-lg border-2 font-medium transition-all ${selectedSize === sizeData.size
+                      ? 'border-primary bg-primary text-white'
+                      : sizeData.quantity === 0
                         ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                         : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                      }`}
                   >
                     {sizeData.size}
                   </button>
@@ -361,8 +382,11 @@ export default function ProductDetailPage() {
               >
                 Buy Now
               </button>
-              <button className="p-3 sm:p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0">
-                <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+              <button
+                onClick={handleWishlist}
+                className={`p-3 sm:p-4 border rounded-lg transition-colors flex-shrink-0 ${isWishlisted ? 'bg-red-50 text-red-500 border-red-200' : 'border-gray-300 hover:bg-gray-50 text-black'}`}
+              >
+                <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isWishlisted ? 'fill-current' : ''}`} />
               </button>
             </div>
 
@@ -398,11 +422,10 @@ export default function ProductDetailPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`px-4 sm:px-6 py-3 sm:py-4 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
-                  activeTab === tab.key
-                    ? 'text-primary border-b-2 border-primary'
-                    : 'text-gray-600 hover:text-black'
-                }`}
+                className={`px-4 sm:px-6 py-3 sm:py-4 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${activeTab === tab.key
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-600 hover:text-black'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -417,7 +440,7 @@ export default function ProductDetailPage() {
                 className="prose max-w-none"
               >
                 <p className="text-gray-600 whitespace-pre-line">{product.description}</p>
-                
+
                 {product.specifications && (
                   <div className="mt-8">
                     <h3 className="text-lg font-semibold mb-4">Specifications</h3>
@@ -441,7 +464,7 @@ export default function ProductDetailPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     {product.specifications.careInstructions && (
                       <div className="mt-4">
                         <h4 className="font-medium mb-2">Care Instructions</h4>
@@ -483,11 +506,10 @@ export default function ProductDetailPage() {
                               {[...Array(5)].map((_, i) => (
                                 <Star
                                   key={i}
-                                  className={`w-4 h-4 ${
-                                    i < review.rating
-                                      ? 'text-yellow-400 fill-yellow-400'
-                                      : 'text-gray-300'
-                                  }`}
+                                  className={`w-4 h-4 ${i < review.rating
+                                    ? 'text-yellow-400 fill-yellow-400'
+                                    : 'text-gray-300'
+                                    }`}
                                 />
                               ))}
                             </div>
