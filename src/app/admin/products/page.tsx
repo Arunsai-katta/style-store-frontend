@@ -47,6 +47,7 @@ export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,8 +55,19 @@ export default function AdminProducts() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryFilter, stockFilter, debouncedSearchQuery]);
+
+  useEffect(() => {
     fetchProducts();
-  }, [currentPage, categoryFilter, stockFilter]);
+  }, [currentPage, categoryFilter, stockFilter, debouncedSearchQuery]);
 
   const fetchProducts = async () => {
     try {
@@ -65,11 +77,12 @@ export default function AdminProducts() {
         limit: 10,
       };
       if (categoryFilter) params.category = categoryFilter;
-      if (stockFilter === 'low') params.lowStock = true;
+      if (stockFilter === 'low') params.lowStock = 'true';
+      if (debouncedSearchQuery) params.search = debouncedSearchQuery;
 
       const response = await adminAPI.getProducts(params);
       setProducts(response.data.products);
-      setTotalPages(response.data.pagination?.pages || 1);
+      setTotalPages(response.data.pagination?.totalPages || response.data.pagination?.pages || 1);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products');
@@ -95,11 +108,6 @@ export default function AdminProducts() {
       total + cv.sizes?.reduce((s, size) => s + (size.quantity || 0), 0), 0
     ) || 0;
   };
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const categories = ['t-shirts', 'hoodies', 'sweatshirts'];
 
@@ -212,7 +220,7 @@ export default function AdminProducts() {
               ))}
             </div>
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : products.length === 0 ? (
           <div className="p-12 text-center">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
@@ -247,7 +255,7 @@ export default function AdminProducts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product, index) => {
+                  {products.map((product, index) => {
                     const stock = getTotalStock(product);
                     const isLowStock = stock < 10;
 
@@ -360,7 +368,7 @@ export default function AdminProducts() {
             {/* Pagination */}
             <div className="flex items-center justify-between px-4 py-4 border-t">
               <p className="text-sm text-gray-600">
-                Showing {filteredProducts.length} products
+                Showing {products.length} products
               </p>
               <div className="flex items-center gap-2">
                 <button
